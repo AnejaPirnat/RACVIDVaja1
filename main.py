@@ -1,8 +1,8 @@
 import cv2 as cv
 import numpy as np
 
-barva_koze = None
 klik_tocka = None
+izracunano = False
 
 def klik_na_kamero(dogodek, x, y, flags, param):
     global klik_tocka, izracunano
@@ -10,7 +10,8 @@ def klik_na_kamero(dogodek, x, y, flags, param):
         klik_tocka = (x, y)
         izracunano = False
 
-def doloci_barvo_koze(slika, levo_zgoraj, desno_spodaj):
+def doloci_barvo_koze(slika,levo_zgoraj,desno_spodaj) -> tuple:
+
     kvadrat = slika[levo_zgoraj[1]:desno_spodaj[1], levo_zgoraj[0]:desno_spodaj[0]]
     kvadrat_barva = cv.cvtColor(kvadrat, cv.COLOR_BGR2RGB)
     povp_barva = cv.mean(kvadrat_barva)[:3]
@@ -24,17 +25,42 @@ def doloci_barvo_koze(slika, levo_zgoraj, desno_spodaj):
 def zmanjsaj_sliko(slika, sirina, visina):
     return cv.resize(slika, (sirina, visina))
 
-def obdelaj_sliko_s_skatlami(slika, sirina_skatle, visina_skatle, barva_koze):
+
+def obdelaj_sliko_s_skatlami(slika, sirina_skatle, visina_skatle, barva_koze) -> list:
+    visina_slike, sirina_slike = slika.shape[:2]
+    skatle = []
+    slika_Rgb = cv.cvtColor(slika, cv.COLOR_BGR2RGB)
+    slika_grid = slika.copy()
+
+    spodnja_meja, zgornja_meja = barva_koze
+
+    for i in range(0, visina_slike, visina_skatle):
+        for j in range(0, sirina_slike, sirina_skatle):
+            cv.rectangle(slika_grid, (j, i), (j + sirina_skatle, i + visina_skatle), (50, 50, 50), 1)
+            skatla = slika_Rgb[i:i + visina_skatle, j:j + sirina_skatle]
+
+            barve_med_mejami = cv.inRange(skatla, spodnja_meja, zgornja_meja)
+
+            if np.any(barve_med_mejami):
+                skatle.append((j, i, j + sirina_skatle, i + visina_skatle))
+                cv.rectangle(slika_grid, (j, i), (j + sirina_skatle, i + visina_skatle), (0, 0, 255), 2)
+
+    return skatle, slika_grid
+
+def prestej_piklse_z_barvo_koze(slika, barva_koze) -> int:
     pass
 
-def prestej_piksle_z_barvo_koze(slika, barva_koze):
-    pass
 
 if __name__ == '__main__':
     kamera = cv.VideoCapture(1)
     if not kamera.isOpened():
         print('Kamera ni bila odprta.')
     else:
+        cv.namedWindow('Kamera')
+        cv.setMouseCallback('Kamera', klik_na_kamero)
+
+        barva_koze = None
+
         while True:
             ret, slika = kamera.read()
             if not ret:
@@ -42,21 +68,33 @@ if __name__ == '__main__':
                 break
             slika = cv.flip(slika, 1)
             slika = zmanjsaj_sliko(slika, 300, 260)
-            cv.setMouseCallback('Kamera', klik_na_kamero, slika)
 
             if klik_tocka is not None and not izracunano:
-                visina,sirina = klik_tocka
+                visina, sirina = klik_tocka
                 visina_pravokotnika = 100
                 sirina_pravokotnika = 60
                 zgoraj_levo = (visina - sirina_pravokotnika // 2, sirina - visina_pravokotnika // 2)
                 spodaj_desno = (visina + sirina_pravokotnika // 2, sirina + visina_pravokotnika // 2)
                 cv.rectangle(slika, zgoraj_levo, spodaj_desno, (0, 255, 0))
-                spodnja_meja, zgornja_meja = doloci_barvo_koze(slika, zgoraj_levo, spodaj_desno)
-                print("Spodnja meja: ", spodnja_meja)
-                print("Zgornja meja: ", zgornja_meja)
+                barva_koze = doloci_barvo_koze(slika, zgoraj_levo, spodaj_desno)
+
+                print("Spodnja meja:", barva_koze[0])
+                print("Zgornja meja:", barva_koze[1])
                 izracunano = True
 
-            cv.imshow('Kamera', slika)
+            if barva_koze is not None:
+                #Mreza z barvami koze (rdeca)
+                skatle, slika_z_mrezo = obdelaj_sliko_s_skatlami(slika, 20, 20, barva_koze)
+                cv.imshow('Kamera', slika_z_mrezo)
+            else:
+                #osnovna mreža
+                slika_z_mrezo = slika.copy()
+                visina_slike, sirina_slike = slika.shape[:2]
+                for i in range(0, visina_slike, 20):
+                    for j in range(0, sirina_slike, 20):
+                        cv.rectangle(slika_z_mrezo, (j, i), (j + 20, i + 20), (50, 50, 50), 1)
+                cv.imshow('Kamera', slika_z_mrezo)
+
             if cv.waitKey(1) & 0xFF == ord('q'):
                 break
         kamera.release()
