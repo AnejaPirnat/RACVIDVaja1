@@ -4,7 +4,7 @@ import time
 
 klik_tocka = None
 izracunano = False
-fps = 0
+fps = 1
 
 def klik_na_kamero(dogodek, x, y, flags, param):
     global klik_tocka, izracunano
@@ -83,12 +83,6 @@ if __name__ == '__main__':
             fps = 1 / (trenutni_cas - prejsnji_cas)
             prejsnji_cas = trenutni_cas
 
-            # Preveri če je časovna razlika večja od 0 da ne pride do deljenja z 0
-            if casovna_razlika > 0:
-                fps = 1 / casovna_razlika
-            else:
-                fps = 0  # ali nastavi na privzeto vrednost
-
             ret, slika = kamera.read()
             if not ret:
                 print("Napaka pri zajemanju slike.")
@@ -111,7 +105,7 @@ if __name__ == '__main__':
 
             if barva_koze is not None:
                 #Mreza z barvami koze (rdeca)
-                skatle, slika_z_mrezo = obdelaj_sliko_s_skatlami(slika, 20, 20, barva_koze)
+                skatle, slika_z_mrezo = obdelaj_sliko_s_skatlami(slika, 10, 10, barva_koze)
 
                 for skatla in skatle:
                     piksli_barve_koze = prestej_piklse_z_barvo_koze(slika, barva_koze, skatla)
@@ -119,16 +113,12 @@ if __name__ == '__main__':
                 cv.putText(slika_z_mrezo, f"FPS: {int(fps)}", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 cv.imshow('Kamera', slika_z_mrezo)
             else:
-                #osnovna mreža
+                #pred klikom
                 slika_z_mrezo = slika.copy()
-                visina_slike, sirina_slike = slika.shape[:2]
-                for i in range(0, visina_slike, 20):
-                    for j in range(0, sirina_slike, 20):
-                        cv.rectangle(slika_z_mrezo, (j, i), (j + 20, i + 20), (50, 50, 50), 1)
-                cv.putText(slika_z_mrezo, f"FPS: {int(fps)}", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 cv.imshow('Kamera', slika_z_mrezo)
 
             if cv.waitKey(1) & 0xFF == ord('q'):
                 break
         kamera.release()
+        fps = 1
         cv.destroyAllWindows()
