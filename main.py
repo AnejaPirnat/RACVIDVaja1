@@ -78,6 +78,17 @@ if __name__ == '__main__':
         prejsnji_cas = time.time()
 
         while True:
+            trenutni_cas = time.time()
+            casovna_razlika = trenutni_cas - prejsnji_cas
+            fps = 1 / (trenutni_cas - prejsnji_cas)
+            prejsnji_cas = trenutni_cas
+
+            # Preveri če je časovna razlika večja od 0 da ne pride do deljenja z 0
+            if casovna_razlika > 0:
+                fps = 1 / casovna_razlika
+            else:
+                fps = 0  # ali nastavi na privzeto vrednost
+
             ret, slika = kamera.read()
             if not ret:
                 print("Napaka pri zajemanju slike.")
@@ -105,7 +116,7 @@ if __name__ == '__main__':
                 for skatla in skatle:
                     piksli_barve_koze = prestej_piklse_z_barvo_koze(slika, barva_koze, skatla)
                     print(f"Število pikslov barve kože v škatli {skatla}: {piksli_barve_koze}")
-
+                cv.putText(slika_z_mrezo, f"FPS: {int(fps)}", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 cv.imshow('Kamera', slika_z_mrezo)
             else:
                 #osnovna mreža
@@ -114,6 +125,7 @@ if __name__ == '__main__':
                 for i in range(0, visina_slike, 20):
                     for j in range(0, sirina_slike, 20):
                         cv.rectangle(slika_z_mrezo, (j, i), (j + 20, i + 20), (50, 50, 50), 1)
+                cv.putText(slika_z_mrezo, f"FPS: {int(fps)}", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
                 cv.imshow('Kamera', slika_z_mrezo)
 
             if cv.waitKey(1) & 0xFF == ord('q'):
