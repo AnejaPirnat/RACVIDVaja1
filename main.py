@@ -1,8 +1,10 @@
 import cv2 as cv
 import numpy as np
+import time
 
 klik_tocka = None
 izracunano = False
+fps = 0
 
 def klik_na_kamero(dogodek, x, y, flags, param):
     global klik_tocka, izracunano
@@ -17,6 +19,8 @@ def doloci_barvo_koze(slika,levo_zgoraj,desno_spodaj) -> tuple:
     povp_barva = cv.mean(kvadrat_barva)[:3]
     toleranca = 10
 
+    #Tu se nastavi max ker ce bi bilo stevilo negativno potem nebi blo v pravem formatu in ze zaokrozi
+    #isto z min samo da ce slucajno preseze 250 (rgb)
     spodnja_meja = np.array([max(0, povp_barva[0] - toleranca), max(0, povp_barva[1] - toleranca), max(0, povp_barva[2] - toleranca)], dtype=np.uint8)
     zgornja_meja = np.array([min(179, povp_barva[0] + toleranca), min(255, povp_barva[1] + toleranca), min(255, povp_barva[2] + toleranca)], dtype=np.uint8)
 
@@ -34,7 +38,9 @@ def obdelaj_sliko_s_skatlami(slika, sirina_skatle, visina_skatle, barva_koze) ->
 
     spodnja_meja, zgornja_meja = barva_koze
 
+    #i se pomika po visini slike (vrstice)
     for i in range(0, visina_slike, visina_skatle):
+        #j se pomika po širini slike (stolpci)
         for j in range(0, sirina_slike, sirina_skatle):
             cv.rectangle(slika_grid, (j, i), (j + sirina_skatle, i + visina_skatle), (50, 50, 50), 1)
             skatla = slika_Rgb[i:i + visina_skatle, j:j + sirina_skatle]
@@ -47,9 +53,18 @@ def obdelaj_sliko_s_skatlami(slika, sirina_skatle, visina_skatle, barva_koze) ->
 
     return skatle, slika_grid
 
-def prestej_piklse_z_barvo_koze(slika, barva_koze) -> int:
-    pass
+def prestej_piklse_z_barvo_koze(slika, barva_koze, skatla) -> int:
 
+    visina1, sirina1, visina2, sirina2 = skatla
+    skatla_slika = slika[sirina1:sirina2, visina1:visina2]
+
+    skatla_slika_rgb = cv.cvtColor(skatla_slika, cv.COLOR_BGR2RGB)
+
+    spodnja_meja, zgornja_meja = barva_koze
+    koza = cv.inRange(skatla_slika_rgb, spodnja_meja, zgornja_meja)
+
+    piksli = cv.countNonZero(koza)
+    return piksli
 
 if __name__ == '__main__':
     kamera = cv.VideoCapture(1)
@@ -60,6 +75,7 @@ if __name__ == '__main__':
         cv.setMouseCallback('Kamera', klik_na_kamero)
 
         barva_koze = None
+        prejsnji_cas = time.time()
 
         while True:
             ret, slika = kamera.read()
@@ -85,6 +101,11 @@ if __name__ == '__main__':
             if barva_koze is not None:
                 #Mreza z barvami koze (rdeca)
                 skatle, slika_z_mrezo = obdelaj_sliko_s_skatlami(slika, 20, 20, barva_koze)
+
+                for skatla in skatle:
+                    piksli_barve_koze = prestej_piklse_z_barvo_koze(slika, barva_koze, skatla)
+                    print(f"Število pikslov barve kože v škatli {skatla}: {piksli_barve_koze}")
+
                 cv.imshow('Kamera', slika_z_mrezo)
             else:
                 #osnovna mreža
