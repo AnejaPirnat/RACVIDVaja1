@@ -16,14 +16,14 @@ def doloci_barvo_koze(slika,levo_zgoraj,desno_spodaj) -> tuple:
 
     #Kvadrat od klika na kamero
     kvadrat = slika[levo_zgoraj[1]:desno_spodaj[1], levo_zgoraj[0]:desno_spodaj[0]]
-    #pretvori se v rgb
-    kvadrat_barva = cv.cvtColor(kvadrat, cv.COLOR_BGR2RGB)
+    #pretvori se v hsv
+    kvadrat_barva = cv.cvtColor(kvadrat, cv.COLOR_BGR2HSV)
     #Dobi se povprecna barva kvadrata
     povp_barva = cv.mean(kvadrat_barva)[:3]
-    toleranca = 10
+    toleranca = 40
 
     #Tu se nastavi max ker ce bi bilo stevilo negativno potem nebi blo v pravem formatu in ze zaokrozi
-    #isto z min samo da ce slucajno preseze 250 (rgb)
+    #isto z min samo da ce slucajno preseze najvecje vrednosti
     spodnja_meja = np.array([max(0, povp_barva[0] - toleranca), max(0, povp_barva[1] - toleranca), max(0, povp_barva[2] - toleranca)], dtype=np.uint8)
     zgornja_meja = np.array([min(179, povp_barva[0] + toleranca), min(255, povp_barva[1] + toleranca), min(255, povp_barva[2] + toleranca)], dtype=np.uint8)
 
@@ -34,34 +34,26 @@ def zmanjsaj_sliko(slika, sirina, visina):
 
 
 def obdelaj_sliko_s_skatlami(slika, sirina_skatle, visina_skatle, barva_koze) -> list:
-
     #Visina in sirina slike
     visina_slike, sirina_slike = slika.shape[:2]
     skatle = []
-    #Pretvori sliko v rgb
-    slika_Rgb = cv.cvtColor(slika, cv.COLOR_BGR2RGB)
-    #Kopija sliko zato da lahko izrisem mrezo
-    slika_grid = slika.copy()
-
-    spodnja_meja, zgornja_meja = barva_koze
 
     #i se pomika po visini slike (vrstice)
-    for i in range(0, visina_slike, visina_skatle):
+    for i in range(0, visina_slike - visina_skatle + 1, visina_skatle):
+        vrstica = []
         #j se pomika po širini slike (stolpci)
-        for j in range(0, sirina_slike, sirina_skatle):
-            #j,i je zgornji levi kot, j+sirina_skatle, i+visina_skatle je spodnji desni kot
-            cv.rectangle(slika_grid, (j, i), (j + sirina_skatle, i + visina_skatle), (50, 50, 50), 1)
-            skatla = slika_Rgb[i:i + visina_skatle, j:j + sirina_skatle]
+        for j in range(0, sirina_slike - sirina_skatle + 1, sirina_skatle):
+            piksli_koze = prestej_piklse_z_barvo_koze(slika, barva_koze, (j, i, j + sirina_skatle, i + visina_skatle))
+            skupno_pikslov = sirina_skatle * visina_skatle
 
-            #Range barv ki so med spodnjo in zgornjo mejo v skatli
-            barve_med_mejami = cv.inRange(skatla, spodnja_meja, zgornja_meja)
+            if piksli_koze > skupno_pikslov * 0.75:
+                vrstica.append(1)
+            else:
+                vrstica.append(0)
 
-            #Ce je katera barva v skatli med mejami se pol to appenda v array skatl in se narise rdeca obroba
-            if np.any(barve_med_mejami):
-                skatle.append((j, i, j + sirina_skatle, i + visina_skatle))
-                cv.rectangle(slika_grid, (j, i), (j + sirina_skatle, i + visina_skatle), (0, 0, 255), 2)
+        skatle.append(vrstica)
 
-    return skatle, slika_grid
+    return skatle
 
 def prestej_piklse_z_barvo_koze(slika, barva_koze, skatla) -> int:
 
@@ -69,12 +61,12 @@ def prestej_piklse_z_barvo_koze(slika, barva_koze, skatla) -> int:
     visina1, sirina1, visina2, sirina2 = skatla
     #Dobi se slika znotraj skatle
     skatla_slika = slika[sirina1:sirina2, visina1:visina2]
-    #Pretvori se v rgb
-    skatla_slika_rgb = cv.cvtColor(skatla_slika, cv.COLOR_BGR2RGB)
+    #Pretvori se v hsv
+    skatla_slika_hsv = cv.cvtColor(skatla_slika, cv.COLOR_BGR2HSV)
 
     spodnja_meja, zgornja_meja = barva_koze
     #Range barv ki so med spodnjo in zgornjo mejo v skatli
-    koza = cv.inRange(skatla_slika_rgb, spodnja_meja, zgornja_meja)
+    koza = cv.inRange(skatla_slika_hsv, spodnja_meja, zgornja_meja)
 
     #Presteje piksle z barvo koze
     piksli = cv.countNonZero(koza)
@@ -90,6 +82,8 @@ if __name__ == '__main__':
 
         barva_koze = None
         prejsnji_cas = time.time()
+        visina_skatle = 5
+        sirina_skatle = 5
 
         while True:
             #Izracun fps
@@ -119,19 +113,18 @@ if __name__ == '__main__':
                 izracunano = True
 
             if barva_koze is not None:
-                #Mreza z barvami koze (rdeca)
-                skatle, slika_z_mrezo = obdelaj_sliko_s_skatlami(slika, 10, 10, barva_koze)
-
-                #Za vsako skatlo se presteje piksle z barvo koze
-                for skatla in skatle:
-                    piksli_barve_koze = prestej_piklse_z_barvo_koze(slika, barva_koze, skatla)
-                    print(f"Število pikslov barve kože v škatli {skatla}: {piksli_barve_koze}")
-                cv.putText(slika_z_mrezo, f"FPS: {int(fps)}", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-                cv.imshow('Kamera', slika_z_mrezo)
+                skatle = obdelaj_sliko_s_skatlami(slika, sirina_skatle, visina_skatle, barva_koze)
+                visina_slike, sirina_slike = slika.shape[:2]
+                for i in range(0, visina_slike - visina_skatle + 1, visina_skatle):
+                    # j se pomika po širini slike (stolpci)
+                    for j in range(0, sirina_slike - sirina_skatle + 1, sirina_skatle):
+                        if skatle[i//visina_skatle][j//sirina_skatle] == 1:
+                            cv.rectangle(slika, (j, i), (j + sirina_skatle, i + visina_skatle), (0, 255, 0), 1)
+                cv.putText(slika, f"FPS: {int(fps)}", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                cv.imshow('Kamera', slika)
             else:
                 #pred klikom
-                slika_z_mrezo = slika.copy()
-                cv.imshow('Kamera', slika_z_mrezo)
+                cv.imshow('Kamera', slika)
 
             if cv.waitKey(1) & 0xFF == ord('q'):
                 break
