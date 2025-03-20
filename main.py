@@ -61,7 +61,7 @@ def prestej_piklse_z_barvo_koze(slika, barva_koze, skatla) -> int:
     visina1, sirina1, visina2, sirina2 = skatla
     #Dobi se slika znotraj skatle
     skatla_slika = slika[sirina1:sirina2, visina1:visina2]
-    #Pretvori se v hsv
+    # Pretvori se v hsv
     skatla_slika_hsv = cv.cvtColor(skatla_slika, cv.COLOR_BGR2HSV)
 
     spodnja_meja, zgornja_meja = barva_koze
