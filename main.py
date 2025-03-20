@@ -9,6 +9,7 @@ fps = 1
 def klik_na_kamero(dogodek, x, y, flags, param):
     global klik_tocka, izracunano
     if dogodek == cv.EVENT_LBUTTONDOWN:
+        #Ko se klikne na sliko se shrani x in y koordinate
         klik_tocka = (x, y)
         izracunano = False
 
@@ -46,6 +47,7 @@ def obdelaj_sliko_s_skatlami(slika, sirina_skatle, visina_skatle, barva_koze) ->
             piksli_koze = prestej_piklse_z_barvo_koze(slika, barva_koze, (j, i, j + sirina_skatle, i + visina_skatle))
             skupno_pikslov = sirina_skatle * visina_skatle
 
+            #Ce je vec kot 75% pikslov koze potem se appenda kot 1 drugace 0
             if piksli_koze > skupno_pikslov * 0.75:
                 vrstica.append(1)
             else:
@@ -87,6 +89,7 @@ if __name__ == '__main__':
 
         while True:
             #Izracun fps
+            #pomoc z https://www.geeksforgeeks.org/python-displaying-real-time-fps-at-which-webcam-video-file-is-processed-using-opencv/
             trenutni_cas = time.time()
             casovna_razlika = trenutni_cas - prejsnji_cas
             fps = 1 / (trenutni_cas - prejsnji_cas)
@@ -100,9 +103,11 @@ if __name__ == '__main__':
             slika = zmanjsaj_sliko(slika, 300, 260)
 
             if klik_tocka is not None and not izracunano:
+                #Ko se klikne na sliko se shrani x in y koordinate
                 visina, sirina = klik_tocka
                 visina_pravokotnika = 100
                 sirina_pravokotnika = 60
+                #Zgoraj levi in spodaj desni kot pravokotnika
                 zgoraj_levo = (visina - sirina_pravokotnika // 2, sirina - visina_pravokotnika // 2)
                 spodaj_desno = (visina + sirina_pravokotnika // 2, sirina + visina_pravokotnika // 2)
                 cv.rectangle(slika, zgoraj_levo, spodaj_desno, (0, 255, 0))
@@ -118,6 +123,7 @@ if __name__ == '__main__':
                 for i in range(0, visina_slike - visina_skatle + 1, visina_skatle):
                     # j se pomika po širini slike (stolpci)
                     for j in range(0, sirina_slike - sirina_skatle + 1, sirina_skatle):
+                        #// zato da ne gre out of range (pomikanje po pikslih)
                         if skatle[i//visina_skatle][j//sirina_skatle] == 1:
                             cv.rectangle(slika, (j, i), (j + sirina_skatle, i + visina_skatle), (0, 255, 0), 1)
                 cv.putText(slika, f"FPS: {int(fps)}", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
