@@ -17,16 +17,14 @@ def doloci_barvo_koze(slika,levo_zgoraj,desno_spodaj) -> tuple:
 
     #Kvadrat od klika na kamero
     kvadrat = slika[levo_zgoraj[1]:desno_spodaj[1], levo_zgoraj[0]:desno_spodaj[0]]
-    #pretvori se v hsv
-    kvadrat_barva = cv.cvtColor(kvadrat, cv.COLOR_BGR2HSV)
     #Dobi se povprecna barva kvadrata
-    povp_barva = cv.mean(kvadrat_barva)[:3]
+    povp_barva = cv.mean(kvadrat)[:3]
     toleranca = 40
 
     #Tu se nastavi max ker ce bi bilo stevilo negativno potem nebi blo v pravem formatu in ze zaokrozi
     #isto z min samo da ce slucajno preseze najvecje vrednosti
     spodnja_meja = np.array([max(0, povp_barva[0] - toleranca), max(0, povp_barva[1] - toleranca), max(0, povp_barva[2] - toleranca)], dtype=np.uint8)
-    zgornja_meja = np.array([min(179, povp_barva[0] + toleranca), min(255, povp_barva[1] + toleranca), min(255, povp_barva[2] + toleranca)], dtype=np.uint8)
+    zgornja_meja = np.array([min(255, povp_barva[0] + toleranca), min(255, povp_barva[1] + toleranca), min(255, povp_barva[2] + toleranca)], dtype=np.uint8)
 
     return spodnja_meja, zgornja_meja
 
@@ -63,15 +61,19 @@ def prestej_piklse_z_barvo_koze(slika, barva_koze, skatla) -> int:
     visina1, sirina1, visina2, sirina2 = skatla
     #Dobi se slika znotraj skatle
     skatla_slika = slika[sirina1:sirina2, visina1:visina2]
-    # Pretvori se v hsv
-    skatla_slika_hsv = cv.cvtColor(skatla_slika, cv.COLOR_BGR2HSV)
 
+    piksli = 0
     spodnja_meja, zgornja_meja = barva_koze
-    #Range barv ki so med spodnjo in zgornjo mejo v skatli
-    koza = cv.inRange(skatla_slika_hsv, spodnja_meja, zgornja_meja)
 
-    #Presteje piksle z barvo koze
-    piksli = cv.countNonZero(koza)
+    # i se pomika po vrsticah, j pa po stolpcih skatle
+    for i in range(skatla_slika.shape[0]):
+        for j in range(skatla_slika.shape[1]):
+            #Ce je barva piksla znotraj mej barve koze se poveca piksli
+            #To gleda ce je rdecas, zelenas in modras v mejah za vsak piksel v skatli posebaj
+            if(spodnja_meja[0] <= skatla_slika[i, j, 0] <= zgornja_meja[0] and
+               spodnja_meja[1] <= skatla_slika[i, j, 1] <= zgornja_meja[1] and
+               spodnja_meja[2] <= skatla_slika[i, j, 2] <= zgornja_meja[2]):
+                piksli += 1
     return piksli
 
 if __name__ == '__main__':
